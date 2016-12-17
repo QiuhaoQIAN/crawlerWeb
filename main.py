@@ -2,8 +2,8 @@
 
 from Crawler import *
 
-def getPageMorts(url, page_filter):
-    crawl = Crawler(url, page_filter=page_filter)
+def getPageMorts(url, pageFilter):
+    crawl = Crawler(url, pageFilter=pageFilter)
     dead_urls = []
     for page in crawl:
         print ("HttpCode:%d     Url: %s "%(page.codeHTTP, page.url))
@@ -13,7 +13,7 @@ def getPageMorts(url, page_filter):
 
         source_pages = {}
         for url in dead_urls:
-            for source_page in crawl.pages_to_be_crawled_dict[url[1]]:
+            for source_page in crawl.pagesToCrawled_dict[url[1]]:
                 if source_page in source_pages:
                     if url[0] in source_pages[source_page]:
                         source_pages[source_page][url[0]].append(url[1])
@@ -39,5 +39,5 @@ def getPageMorts(url, page_filter):
 
 if __name__ == '__main__':
     seed_url = 'http://www-sop.inria.fr/members/Arnaud.Legout/'
-    page_filter = ['www-sop.inria.fr/members/Arnaud.Legout']
-    getPageMorts(seed_url, page_filter)
+    pageFilter = ['www-sop.inria.fr/members/Arnaud.Legout']
+    getPageMorts(seed_url, pageFilter)
