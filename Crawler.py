@@ -16,10 +16,10 @@ class Crawler(object):
         self.maxPages = maxPages
 
         # Each key is a URL, and the value for the key url is the list
-        self.pagesToCrawled_dict = {}
+        self.pagesToCrawl_dict = {}
 
         # set of the pages to be crawled
-        self.pagesToCrawled = set([])
+        self.pagesToCrawl = set([])
 
         # set of the pages already crawled
         self.pagesCrawled = set([])
@@ -27,15 +27,9 @@ class Crawler(object):
         #  set of the domains already crawled
         self.domainsCrawled = set([])
 
-    def update_pagesToCrawled(self, page):
+    def update_pagesToCrawl(self, page):
         """
-        Prend un objet HTMLpage comme argument et trouve toutes les
-        URLs presente dans la page HTML correspondante. Cette methode
-        met a jour le dictionnaire pagesToCrawled_dict et
-        l'ensemble pagesToCrawled. On ne met pas a jour le
-        dictionnaire et le set si l'URL correspondant a l'objet
-        HTMLpage n'est pas dans la liste de pages acceptees dans
-        self.pageFilter.
+        update pagesToCrawl_dict and pagesToCrawl when the url of this page pass filtre
         """
         # check if the page from which we got URLs pass the pageFilter
         pass_filter = False
@@ -44,40 +38,37 @@ class Crawler(object):
                 pass_filter = True
 
         if pass_filter:
-            # update the list of pages to be crawled with the URLs
-            for url in page.urls:
-                # update the dict even if url already crawled (to get
-                # comprehensif information)
-                if url in self.pagesToCrawled_dict:
-                    self.pagesToCrawled_dict[url].append(page.url)
-                else:
-                    self.pagesToCrawled_dict[url] = [page.url]
-
+           for url in page.urls:
                 # update the set if url not already crawled
                 if url not in self.pagesCrawled:
-                    self.pagesToCrawled.add(url)
+                    self.pagesToCrawl.add(url)
+
+                # update pagesToCrawl_dict
+                if url in self.pagesToCrawl_dict:
+                    self.pagesToCrawl_dict[url].append(page.url)
+                else:
+                    self.pagesToCrawl_dict[url] = [page.url]
+
+
 
     def __iter__(self):
         """
-        A chaque appel de next() sur l'iterateur, on obtient un nouvel
-        objet HTMLPage qui correspond a une URL qui etait dans
-        l'ensemble des URLs a crawler.
-
-        On ne donne aucune garantie sur l'ordre de parcours des URLs
+       :return a HTMLObject
+        every round we update pagesCrawled, domainsCrawled, pagesToCrawl and pagesToCrawl_dict
         """
         page = HTMLPage(self.urlOrigine)
         self.pagesCrawled.add(self.urlOrigine)
         self.domainsCrawled.add(extract_urls(self.urlOrigine)[1])
-        self.update_pagesToCrawled(page)
+        self.update_pagesToCrawl(page)
         yield page
 
-        while (self.pagesToCrawled and
+        while (self.pagesToCrawl and
                        len(self.pagesCrawled) < self.maxPages):
-            url = self.pagesToCrawled.pop()
+            url = self.pagesToCrawl.pop()
             page = HTMLPage(url)
             self.pagesCrawled.add(url)
             self.domainsCrawled.add(extract_urls(url)[1])
-            self.update_pagesToCrawled(page)
+            self.update_pagesToCrawl(page)
             yield page
         raise StopIteration
 
