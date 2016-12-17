@@ -1,21 +1,19 @@
 import urllib2
-from operator import itemgetter
-
 
 # Extrait les domaines d'un URL
 #Retourne le tuple P qui contient
 #   P[0]: URL avec domain
 #    P[1]: URL sans protocol
 def extract_urls(url):
-    protocol_http = 'http://'
-    protocol_https = 'https://'
+    protocolHTTP = 'http://'
+    protocolHTTPs = 'https://'
     protocol = ''
-    if url.startswith(protocol_http):
-        url = url.replace(protocol_http, '')
-        protocol = protocol_http
-    elif url.startswith(protocol_https):
-        url = url.replace(protocol_https, '')
-        protocol = protocol_https
+    if url.startswith(protocolHTTP):
+        url = url.replace(protocolHTTP, '')
+        protocol = protocolHTTP
+    elif url.startswith(protocolHTTPs):
+        url = url.replace(protocolHTTPs, '')
+        protocol = protocolHTTPs
     else:
         return ''
     domain = url[:url.find('/')]
@@ -34,35 +32,26 @@ def isHTMLPage(url):
             return True
         else:
             return False
+
 # un class pour la page HTML
 class HTMLPage(object):
-    def __init__(self, url):
-        """
-        Constructeur de la classe.
-        L'objet a 4 attributs:
-        url: l'URL qui correspond a la page Web
-        _html_it: un iterateur qui parcourt le code HTML, une ligne
-                   a la fois
-        urls: la liste de toutes les URLs contenues dans la page
-        codeHTTP: le code retourne par le protocol HTTP lors de
-                    l'acces a la page
-                    0 signifie une erreur dans l'URL,
-                    -1 signifie que le site de repond pas
-                    -2 signifie une exception en accedant
-                    a l'URL
-        """
+    def __init__(self, url):        
+        # Http code 0:Url not right -1:no reponse from the site  -2: exception
         self.codeHTTP = 0
+        
+        # url courant
         self.url = url
-        self._html_it = self.pageReturn(self.url)
-        self.urls = self.extract_urls_from_page()
+        
+        # the html Code of this page
+        self.pageHtml = self.pageReturn(self.url)
+        
+        # toutes les URLs dans le page courant
+        self.urls = self.getUrls()
 
     # Retourner un page en fonction de URL
     def pageReturn(self, url):
-        # surcharge la classe Request pour faire des requetes HEAD qui
-        # pemettent de collecter que l'entete de la page. C'est utile
-        # lorsque la page ne contient pas de code HTML et donc pas
-        # d'URL.  On peut ainsi obtenir un code HTTP sans avoir besoin
-        # de telecharger toute la page.
+        # surcharge of Request, if not a HTML page, we just get the head
+        # use later
         class HeadRequest(urllib2.Request):
             def get_method(self):
                 return "HEAD"
@@ -85,81 +74,31 @@ class HTMLPage(object):
             self.codeHTTP = -2
             return []
 
-    def extract_urls_from_page(self):
-        """
-        Construit la liste de toutes les URLs contenues dans le corps de
-        la page HTML en parcourant l'iterateur retourne par
-        pageReturn()
-
-        On identifie une URL parce qu'elle est precedee de href= et
-        dans le corps (body) de la page. Le parsing que l'on implement
-        est imparfait, mais un vrai parsing intelligent demanderait
-        une analyse syntaxique trop complexe pour nos besoins.
-
-        Plus en details, notre parsing consiste a chercher dans le
-        corps de la page (body):
-
-        -les urls contenues dans le champ href (essentiellement on
-         cherche le tag 'href=' et on extrait ce qui est entre
-         guillemets ou apostrophes)
-
-        -on ne garde ensuite que les urls qui commencent par http ou
-         https et
-
-             * les urls qui commencent par ./ auxquelles on ajoute
-          devant (a la place du point) l'Url de la page d'origine
-          (self.url) exemple : pour './ma_page.html' et self.url =
-          http://mon_site.fr/rep1/ on obtient l'url
-          http://mon_site.fr/rep1/ma_page.html
-
-            * les urls qui commencent par /ma_page.html auxquelles on
-           ajoute devant uniquement le hostname de la page d'origine
-           (self.url) exemple : pour '/ma_page.html' et self.url =
-           http://mon_site.fr/rep1/ on obtient l'url
-           http://mon_site.fr/ma_page.html
-
-        Cette methode retourne la liste des URLs contenues dans la
-        page.
-
-        """
-
-        # parse the page to extract all URLs in href field and in the
-        # body of the document
-        list_urls = []
-        is_body = False
-        for line in self._html_it:
-            # line = line.lower()
-            if is_body:
+    def getUrls(self):
+        # Cette methode retourne la liste des URLs contenues dans la page.
+        listUrls = []
+        finalListUrls = []
+        isBody = False
+        for line in self.pageHtml:
+            if isBody:
                 if "href=" in line.lower():
-                    # extract everything between href=" and "> probably
-                    # not bullet proof, but should work most of the
-                    # time.
-                    url_separator = line[line.lower().find('href=') + 5]
+                    # separator may be ' or "
+                    separator = line[line.lower().find('href=') + 5]
                     line = line[line.lower().find('href=') + 6:]
-                    line = line[:line.lower().find(url_separator)]
-                    list_urls.append(line)
+                    line = line[:line.lower().find(separator)]
+                    listUrls.append(line)
             else:
-                # do not end with > in order to deal with arguments
-                # without complexe parsing
+                # where the body begins
                 if '<body' in line:
-                    is_body = True
+                    isBody = True
 
-        # keep only http and https
-        filtered_list_urls = [x for x in list_urls
-                              if x.lower().startswith('http')
-                              or x.lower().startswith('https')]
+        for url in listUrls:
+            if (url.lower().startswith('http') or url.lower().startswith('https')):
+                finalListUrls.append(url)
+            elif url.startswith('./'):
+                finalListUrls.append(self.url[:self.url.rfind('/')] + url[1:])
+            elif url.startswith('/'):
+                finalListUrls.append(extract_urls(self.url)[0] + url[1:])
 
-        # and reconstruct relative links ./
-        filtered_list_urls.extend([self.url[:self.url.rfind('/')] + x[1:]
-                                   for x in list_urls
-                                   if x.startswith('./')])
+        return list(set(finalListUrls))
 
-        # and reconstruct relative links /
-        filtered_list_urls.extend([extract_urls(self.url)[0]
-                                   + x for x in list_urls
-                                   if x.startswith('/')])
-
-        # debug
-        # print [x for x in list_urls if x.startswith('./')]
-
-        return list(set(filtered_list_urls))
