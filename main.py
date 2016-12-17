@@ -4,35 +4,35 @@ from Crawler import *
 
 def getPageMorts(url, pageFilter):
     crawl = Crawler(url, pageFilter=pageFilter)
-    urlsMort = []
+    dead_urls = []
     for page in crawl:
         print ("HttpCode:%d     Url: %s "%(page.codeHTTP, page.url))
 
         if page.codeHTTP not in range(200,300):
-            urlsMort.append((page.codeHTTP, page.url))
-        # a new dictionary to stock the results {url who has the dead liens: [dead liens]}
-        pageParents = {}
-        for url in urlsMort:
-            for pageParent in crawl.pagesToCrawl_dict[url[1]]:
-                if pageParent in pageParents:
-                    if url[0] in pageParents[pageParent]:
-                        pageParents[pageParent][url[0]].append(url[1])
+            dead_urls.append((page.codeHTTP, page.url))
+
+        source_pages = {}
+        for url in dead_urls:
+            for source_page in crawl.pagesToCrawled_dict[url[1]]:
+                if source_page in source_pages:
+                    if url[0] in source_pages[source_page]:
+                        source_pages[source_page][url[0]].append(url[1])
                     else:
-                        pageParents[pageParent][url[0]] = [url[1]]
+                        source_pages[source_page][url[0]] = [url[1]]
                 else:
-                    pageParents[pageParent] = {url[0]: [url[1]]}
+                    source_pages[source_page] = {url[0]: [url[1]]}
 
     print "\n Crawler Complet!\n"
     with open('liensMort.txt', 'w') as dump_file:
-        for pageParent in pageParents:
+        for source_page in source_pages:
             dump_file.write('Dans la page : \n{}\n'
-                        .format(pageParent))
+                        .format(source_page))
             dump_file.write('\n')
-            codeHTTP = pageParents[pageParent].keys()
+            codeHTTP = source_pages[source_page].keys()
             codeHTTP.sort()
             for code in codeHTTP:
                 dump_file.write('HTTP return code {}\n'.format(code))
-                for url in pageParents[pageParent][code]:
+                for url in source_pages[source_page][code]:
                     dump_file.write('        {}\n'.format(url))
             dump_file.write('*'*80 + '\n\n')
 
